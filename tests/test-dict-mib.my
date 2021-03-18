@@ -1,0 +1,27 @@
+test-dict-mib DEFINITIONS ::= BEGIN
+
+
+dot1xPaeSystemAuthControl OBJECT-TYPE
+    SYNTAX INTEGER {
+        enabled(1),
+        disabled(2)
+        }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "The administrative enable/disable state for
+         Port Access Control in a System."
+    REFERENCE
+        "9.6.1, SystemAuthControl"
+    ::= { dot1xPaeSystem 1 }
+
+dot1xPaeSystem  OBJECT IDENTIFIER ::= { paeMIBObjects 1 }
+
+paeMIBObjects   OBJECT IDENTIFIER ::= { ieee8021paeMIB 1 }
+
+ieee8021paeMIB OBJECT IDENTIFIER ::= { iso(1) std(0) iso8802(8802) ieee802dot1(1) ieee802dot1mibs(1) 1 }
+
+
+
+
+END

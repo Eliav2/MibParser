@@ -1,0 +1,1471 @@
+test-loading-mib DEFINITIONS ::= BEGIN
+
+
+TimeTicks ::=
+           [APPLICATION 3]
+               IMPLICIT INTEGER (0..4294967295)
+
+frxT1OutOctets OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of octets transmitted to the network
+        from this subscriber port"
+    ::= { frxPortEntry 10 }
+
+Counter ::=
+           [APPLICATION 1]
+               IMPLICIT INTEGER (0..4294967295)
+
+frxPortEntry OBJECT-TYPE
+    SYNTAX FrxPortEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "A specific entry in the Cisco 90 Series Port Table. There is
+        one entry for each port on each Cisco 90 Series channel unit
+        in the system.  There are no entries for unused banks or
+        empty channel unit slots."
+    INDEX { frxBankIndex, frxChUIndex, frxPortIndex }
+    ::= { frxPortTable 1 }
+
+FrxPortEntry ::= SEQUENCE {
+    frxPortSpeed INTEGER,
+    frxPortProtocol INTEGER,
+    frxDSLStatus INTEGER,
+    frxPVCAssigned INTEGER,
+    frxLastChange TimeTicks,
+    frxBrite INTEGER,
+    frxDSLInOctets Counter,
+    frxDSLOutOctets Counter,
+    frxT1InOctets Counter,
+    frxT1OutOctets Counter,
+    frxDSLBadFrames Counter,
+    frxDSLHDLCEs Counter,
+    frxDSLCRCEs Counter,
+    frxDSLLinkEs Counter,
+    frxDSLFrShEs Counter,
+    frxDSLFrLgEs Counter,
+    frxDSLDLCIEs Counter,
+    frxTxBuf INTEGER,
+    frxRxBuf INTEGER,
+    frxPortNetEs Counter
+    }
+
+frxPortSpeed OBJECT-TYPE
+    SYNTAX INTEGER {
+        use56kbps(1),
+        use64kbps(2),
+        use128kbps(3),
+        use144kbps(4)
+        }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "This is the speed that the channel unit port runs at.
+          1=56kbps   2=64kbps   3=128kbps   4=144kbps
+        This parameter can only be changed if frxConfigSrc is
+        set to SNMP."
+    ::= { frxPortEntry 1 }
+
+frxPortProtocol OBJECT-TYPE
+    SYNTAX INTEGER {
+        frameRelay(1),
+        ppp(2)
+        }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "This parameter controls what protocol the channel
+        unit should expect the subscriber to send on the port.
+          1=Port uses Frame Relay protocol - no encapsulation
+          2=Port uses PPP protocol - do RFC-1973 encapsulation
+        This parameter can only be changed if frxConfigSrc is
+        set to SNMP."
+    ::= { frxPortEntry 2 }
+
+frxDSLStatus OBJECT-TYPE
+    SYNTAX INTEGER {
+        loopDown(1),
+        dslSyncOnly(2),
+        loopUpInactive(3),
+        loopUp(4)
+        }
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "This is the status of the DSL loop to the subscriber.
+        1=Loop is down.
+        2=Frx card has achieved physical layer activation with
+          the first BRITE card or the NT1 if there are no BRITE cards.
+        3=Link is up but Annex-D is still inactive.  The ACT bit has
+          been exchanged with the NT1 indicating a clear channel path
+          to the customer has been established. Ports running protocols
+          (i.e. PPP) that do not support Annex-D will never be in this
+          state.
+        4=Link is fully up.  Annex-D (if appropriate) is active."
+    ::= { frxPortEntry 3 }
+
+frxPVCAssigned OBJECT-TYPE
+    SYNTAX INTEGER(0..8)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of PVCs assigned to Subscriber Port as determined
+        by Annex-D"
+    ::= { frxPortEntry 4 }
+
+frxLastChange OBJECT-TYPE
+    SYNTAX TimeTicks
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Time since DSL went in sync or lost sync in 0.01
+        second increments."
+    ::= { frxPortEntry 5 }
+
+frxBrite OBJECT-TYPE
+    SYNTAX INTEGER(0..6)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of BRITE cards downstream.  BRITE cards are used
+        to extend the loop over subscriber loop carrier systems
+        and are detected via a background polling operation."
+    ::= { frxPortEntry 6 }
+
+frxDSLInOctets OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of octets received from the subscriber DSL
+        Does not include Annex-D octets"
+    ::= { frxPortEntry 7 }
+
+frxDSLOutOctets OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of octets transmitted to the subscriber DSL.
+        Does not include Annex-D octets"
+    ::= { frxPortEntry 8 }
+
+frxT1InOctets OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of octets received from the network
+        directed at this subscriber port"
+    ::= { frxPortEntry 9 }
+
+frxDSLBadFrames OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Total number of frames received from this subscriber port
+        that were discarded. Possible reasons for discard are:
+           Frame contained HDLC abort (7 or more ones in a row)
+           Frame had a CRC error
+           Frame had a non-integral number of bytes
+           Frame was too short (less than 5 bytes)
+           Frame was too long (more than 8192 bytes)
+           Frame had illegal DLCI (not 16-23)
+           Frame was discarded due to lack of buffer space or
+              due to congestion control"
+    ::= { frxPortEntry 11 }
+
+frxDSLHDLCEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Subscriber port Errored Seconds caused by HDLC aborts
+        (7 or more ones in a row). Total number of seconds in
+        which a frame with an HDLC abort is received from this
+        port."
+    ::= { frxPortEntry 12 }
+
+frxDSLCRCEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Subscriber port Errored Seconds caused by CRC errors.
+        Total number of seconds in which a frame with a CRC
+        error is received from this port."
+    ::= { frxPortEntry 13 }
+
+frxDSLLinkEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Subscriber port Errored Seconds caused by Non-integral
+        Bytes. Total number of seconds in which a frame with a
+        non-integral  number of bytes is received from this
+        port."
+    ::= { frxPortEntry 14 }
+
+frxDSLFrShEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Subscriber port Errored Seconds caused by Short Frames.
+        received Total number of seconds in which a frame that
+        is too short (less than 5 bytes) is received from this
+        port."
+    ::= { frxPortEntry 15 }
+
+frxDSLFrLgEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Subscriber port Errored Seconds caused by Long Frames
+        received. Total number of seconds in which a frame that
+        is too long (more than 8192 bytes) is received from this
+        port."
+    ::= { frxPortEntry 16 }
+
+frxDSLDLCIEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Subscriber port Errored Seconds caused by illegal DLCI.
+        Total number of seconds in which a frame that has a DLCI
+        other than 16 to 23 (or 0) is received from this port."
+    ::= { frxPortEntry 17 }
+
+frxTxBuf OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of octets in the transmit buffer for this
+        subscriber port.  This data is waiting to be sent
+        to the network (T1)."
+    ::= { frxPortEntry 18 }
+
+frxRxBuf OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of octets in the receive buffer for this
+        subscriber port.  This data is from the network (T1)
+        and is waiting to be sent to the subscriber port."
+    ::= { frxPortEntry 19 }
+
+frxPortNetEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Total number of seconds in which a frame received
+        from the network (T1) and targeted at this subscriber
+        port was discarded."
+    ::= { frxPortEntry 20 }
+
+frxBankIndex OBJECT-TYPE
+    SYNTAX INTEGER(16..1007)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Channel Bank Di-group Number. This index is used to address
+        the various channel banks in the system. This number is the
+        same as the DLCI number used to communicate with the bank at
+        the Cisco 90 SNMP Agent. (note that this is NOT the same
+        as the DLCI number at the channel bank.  The channel bank
+        always uses DLCI 30 or 31 to communicate with the Agent.)"
+    ::= { frxBankEntry 1 }
+
+frxBankEntry OBJECT-TYPE
+    SYNTAX FrxBankEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "A specific entry in the Cisco 90 Series Bank Di-group
+        Table. There is one entry for each channel bank di-group
+        (T1) in the system. There are no entries for unused banks"
+    INDEX { frxBankIndex }
+    ::= { frxBankTable 1 }
+
+FrxBankEntry ::= SEQUENCE {
+    frxBankIndex INTEGER,
+    frxBankType INTEGER
+    }
+
+frxBankType OBJECT-TYPE
+    SYNTAX INTEGER {
+        d4(1)
+        }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "This is the type of channel bank and is for future use.
+        D4 banks return a value of 1."
+    ::= { frxBankEntry 2 }
+
+frxBankTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF FrxBankEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "This Cisco 90 Series Bank Di-group Table contains channel
+        bank level information for each of the channel bank di-groups
+        in the system. A di-group is a T1 interface to the frame
+        relay network. The table is indexed using the Cisco 90 Series
+        channel bank digroup number"
+    ::= { frxBank 1 }
+
+frxBank         OBJECT IDENTIFIER ::= { frMux 3 }
+
+frMux           OBJECT IDENTIFIER ::= { ciscoTelesend 1 }
+
+ciscoTelesend   OBJECT IDENTIFIER ::= { enterprises 1570 }
+
+enterprises   OBJECT IDENTIFIER ::= { private 1 }
+
+private       OBJECT IDENTIFIER ::= { internet 4 }
+
+internet      OBJECT IDENTIFIER ::= { iso org(3) dod(6) 1 }
+
+frxChUIndex OBJECT-TYPE
+    SYNTAX INTEGER(1..24)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Channel Unit Number.  This index is used to address a
+        specific channel unit in a bank. For D4 channel banks
+        this number is the same as the physical slot number 1-24"
+    ::= { frxChUEntry 1 }
+
+frxChUEntry OBJECT-TYPE
+    SYNTAX FrxChUEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "A specific entry in the Cisco 90 Series Channel Unit Table.
+        There is one entry for each Cisco 90 Series channel unit in
+        the system. There are no entries for unused banks or empty
+        channel unit slots"
+    INDEX { frxBankIndex, frxChUIndex }
+    ::= { frxChUTable 1 }
+
+FrxChUEntry ::= SEQUENCE {
+    frxChUIndex INTEGER,
+    frxChUType INTEGER,
+    frxChUVersion INTEGER,
+    frxSigProtocol INTEGER,
+    frxConfigSrc INTEGER,
+    frxDLCIAdLen INTEGER,
+    frxNetInOctets Counter,
+    frxNetOutOctets Counter,
+    frxNetBadFrames Counter,
+    frxNetHDLCEs Counter,
+    frxNetCRCEs Counter,
+    frxNetLinkEs Counter,
+    frxNetFrShEs Counter,
+    frxNetFrLgEs Counter,
+    frxNetPPPEs Counter,
+    frxNetBufEs Counter
+    }
+
+frxChUType OBJECT-TYPE
+    SYNTAX INTEGER {
+        cisco90i(100)
+        }
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Type of Cisco 90 Series channel unit installed."
+    ::= { frxChUEntry 2 }
+
+frxChUVersion OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Cisco 90 Series channel unit version number."
+    ::= { frxChUEntry 3 }
+
+frxSigProtocol OBJECT-TYPE
+    SYNTAX INTEGER {
+        annexD(1)
+        }
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "This is the type of Local In-channel Signaling used
+        when the subscriber is running frame relay protocol.
+        It is provided for future use. Set to 1 for T1.617
+        Annex-D"
+    ::= { frxChUEntry 4 }
+
+frxConfigSrc OBJECT-TYPE
+    SYNTAX INTEGER {
+        annexD(1),
+        snmp(2)
+        }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "Source for configuring speed and protocol for each port.
+         1=Data rate and protocol set by DLCI assignment rules
+           as reported by Annex-D.  This option allows control
+           of these basic parameters from the frame relay switch
+           management station instead of the Cisco 90 Series
+           management station.
+         2=Data rate and protocol set by SNMP variables
+           frxPortSpeed and frxPortProtocol"
+    ::= { frxChUEntry 5 }
+
+frxDLCIAdLen OBJECT-TYPE
+    SYNTAX INTEGER {
+        twoOctetDlci(1)
+        }
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "The number of bytes used for the DLCI address.
+        For future use.  1=two octets."
+    ::= { frxChUEntry 6 }
+
+frxNetInOctets OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Total number of octets received by this channel
+        unit from Frame Relay Switch (on the T1 interface)
+        Only frames whose DLCI is addressed to a port on
+        this channel unit are counted.  Bad frames, Annex-D
+        and SNMP frames are not counted. CRC bytes are not
+        counted"
+    ::= { frxChUEntry 7 }
+
+frxNetOutOctets OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Total number of octets transmitted to the Frame
+        Relay Switch (on the T1 interface) by this channel
+        unit. Annex-D and SNMP frames are not counted. CRC
+        bytes are not counted"
+    ::= { frxChUEntry 8 }
+
+frxNetBadFrames OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Total number of frames received on the network (T1)
+        interface that are discarded by this channel unit.
+        Possible reasons for discard are:
+           Frame contained HDLC abort (7 or more ones in a row)
+           Frame had a CRC error
+           Frame had a non-integral number of bytes
+           Frame was too short (less than 5 bytes)
+           Frame was too long (more than 8192 bytes)
+           Frame had bad RFC-1973 (PPP) header - this error only
+              occurs if destination port is set for PPP protocol.
+           Frame was discarded due to lack of buffer space.
+        Only frames whose DLCI is addressed to a port on
+        this channel unit are counted."
+    ::= { frxChUEntry 9 }
+
+frxNetHDLCEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Network Errored Seconds caused by HDLC aborts (7 or more
+        ones in a row). Total number of seconds in which a frame
+        with an HDLC abort is received by this channel unit on
+        the network (T1) interface. Only frames whose DLCI is
+        addressed to a port on this channel unit are counted."
+    ::= { frxChUEntry 10 }
+
+frxNetCRCEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Network Errored Seconds caused by CRC errors.
+        Total number of seconds in which a frame with a CRC
+        error is received by this channel unit on the network
+        (T1) interface. Only frames whose DLCI is addressed
+        to a port on this channel unit are counted."
+    ::= { frxChUEntry 11 }
+
+frxNetLinkEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Network Errored Seconds caused by Non-integral Bytes.
+        Total number of seconds in which a frame with a non-integral
+        number of bytes is received by this channel unit on the
+        network (T1) interface. Only frames whose DLCI is addressed
+        to a port on this channel unit are counted."
+    ::= { frxChUEntry 12 }
+
+frxNetFrShEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Network Errored Seconds caused by Short Frames received.
+        Total number of seconds in which a frame that is too
+        short (less than 5 bytes) is received by this channel
+        unit on the network (T1) interface. Only frames whose
+        DLCI is addressed to a port on this channel unit are
+        counted."
+    ::= { frxChUEntry 13 }
+
+frxNetFrLgEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Network Errored Seconds caused by Long Frames received.
+        Total number of seconds in which a frame that is too
+        long (more than 8192 bytes) is received by this channel
+        unit on the network (T1) interface. Only frames whose
+        DLCI is addressed to a port on this channel unit are
+        counted."
+    ::= { frxChUEntry 14 }
+
+frxNetPPPEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored seconds caused by bad RFC-1973 (PPP) header.
+        Total number of seconds in which a frame with an
+        invalid RFC-1973 (PPP) header is received by this
+        channel unit on the network (T1) interface. Only frames
+        whose DLCI is addressed to a port that is set to PPP
+        protocol and is on this channel unit are counted."
+    ::= { frxChUEntry 15 }
+
+frxNetBufEs OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds caused by Buffer Overflow.
+        Total number of seconds in which a frame received
+        by this channel unit on the network (T1) interface
+        was discarded due to insufficient buffer space. Only
+        frames whose DLCI is addressed to a port on this
+        channel unit are counted."
+    ::= { frxChUEntry 16 }
+
+frxChUTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF FrxChUEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "This Cisco 90 Series Channel Unit Table contains channel unit
+        level control and statistics for each of the Cisco 90 Series
+        channel units in the system. The table is indexed
+        first using the Cisco 90 Series channel bank digroup number,
+        then the channel unit number (1 to 24)."
+    ::= { frxChUnit 1 }
+
+frxChUnit       OBJECT IDENTIFIER ::= { frMux 4 }
+
+frxPortIndex OBJECT-TYPE
+    SYNTAX INTEGER(0..3)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Which subscriber port on the channel unit is
+        addressed.  Ports are numbered from 0 to 3.
+        Some channel unit types have less than 4 ports."
+    ::= { frxMgtPortEntry 1 }
+
+frxMgtPortEntry OBJECT-TYPE
+    SYNTAX FrxMgtPortEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "A specific entry in the Cisco 90 Series Management Port
+        Table. There is one entry for each port on each
+        Cisco 90 Series channel unit in the system.  There are no
+        entries  for unused banks or empty channel unit
+        slots."
+    INDEX { frxBankIndex, frxChUIndex, frxPortIndex }
+    ::= { frxMgtPortTable 1 }
+
+FrxMgtPortEntry ::= SEQUENCE {
+    frxPortIndex INTEGER,
+    frxPortLinkErrors Counter,
+    frxPortProtErrors Counter,
+    frxPortChInactive Counter
+    }
+
+frxPortLinkErrors OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of signaling link reliability errors from
+        subscriber port.  A signaling reliability error is
+        declared whenever the channel units did not receive
+        an Annex-D link integrity poll or full status inquiry
+        poll from the subscriber port within the required time."
+    ::= { frxMgtPortEntry 2 }
+
+frxPortProtErrors OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of signaling protocol errors from subscriber
+        port. A signaling protocol error is declared whenever
+        the channel units receive an Annex-D link integrity
+        poll or full status inquiry poll with incorrect
+        format or sequence numbers from the subscriber port."
+    ::= { frxMgtPortEntry 3 }
+
+frxPortChInactive OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Number of times the subscriber port Annex-D signaling
+        channel was declared inactive"
+    ::= { frxMgtPortEntry 4 }
+
+frxMgtPortTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF FrxMgtPortEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "This table monitors the T1-617 Annex-D link
+        between the channel units and the subscribers.
+        There is one table row for every port on every
+        channel unit in every bank. The table is indexed
+        first using the channel bank digroup number, then
+        the channel unit number (1 to 24), and then the
+        port number (0 to 3)."
+    ::= { frxMgt 2 }
+
+frxMgt          OBJECT IDENTIFIER ::= { frMux 5 }
+
+frxPortTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF FrxPortEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "This Cisco 90 Series Port Table contains per-port control and
+        statistics for each of the subscriber ports in the
+        system. The table is indexed first using the Cisco 90 Series
+        channel bank digroup number, then by the channel
+        unit number (1 to 24), and finally by the port
+        number (0-3)."
+    ::= { frxPort 1 }
+
+frxPort         OBJECT IDENTIFIER ::= { frMux 6 }
+
+dot1xPaeSystemAuthControl OBJECT-TYPE
+    SYNTAX INTEGER {
+        enabled(1),
+        disabled(2)
+        }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "The administrative enable/disable state for
+         Port Access Control in a System."
+    REFERENCE
+        "9.6.1, SystemAuthControl"
+    ::= { dot1xPaeSystem 1 }
+
+dot1xPaeSystem  OBJECT IDENTIFIER ::= { paeMIBObjects 1 }
+
+paeMIBObjects   OBJECT IDENTIFIER ::= { ieee8021paeMIB 1 }
+
+ieee8021paeMIB OBJECT IDENTIFIER ::= { iso(1) std(0) iso8802(8802) ieee802dot1(1) ieee802dot1mibs(1) 1 }
+
+frxH6EsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 6 hours ago - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 15 }
+
+frxUPerfEntry OBJECT-TYPE
+    SYNTAX FrxUPerfEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "A specific entry in the U-interface Performance Monitoring
+        Statistics table.  There is one entry for each port on each
+        Cisco 90 Series channel unit in the system and one entry for
+        each BRITE card extending those ports.  There are no entries for
+        unused banks or empty channel unit slots"
+    INDEX { frxBankIndex, frxChUIndex, frxPortIndex, frxPAddrIndex }
+    ::= { frxUPerfTable 1 }
+
+FrxUPerfEntry ::= SEQUENCE {
+    frxResetPM INTEGER,
+    frxPMtype INTEGER,
+    frxChEsTx INTEGER,
+    frxChEsRx INTEGER,
+    frxPhEsTx INTEGER,
+    frxPhEsRx INTEGER,
+    frxH2EsTx INTEGER,
+    frxH2EsRx INTEGER,
+    frxH3EsTx INTEGER,
+    frxH3EsRx INTEGER,
+    frxH4EsTx INTEGER,
+    frxH4EsRx INTEGER,
+    frxH5EsTx INTEGER,
+    frxH5EsRx INTEGER,
+    frxH6EsTx INTEGER,
+    frxH6EsRx INTEGER,
+    frxH7EsTx INTEGER,
+    frxH7EsRx INTEGER,
+    frxH8EsTx INTEGER,
+    frxH8EsRx INTEGER,
+    frxCdEsTx INTEGER,
+    frxCdEsRx INTEGER,
+    frxPdEsTx INTEGER,
+    frxPdEsRx INTEGER,
+    frxChSesTx INTEGER,
+    frxChSesRx INTEGER,
+    frxPhSesTx INTEGER,
+    frxPhSesRx INTEGER,
+    frxCdSesTx INTEGER,
+    frxCdSesRx INTEGER,
+    frxPdSesTx INTEGER,
+    frxPdSesRx INTEGER,
+    frxChBeTx INTEGER,
+    frxChBeRx INTEGER,
+    frxPhBeTx INTEGER,
+    frxPhBeRx INTEGER
+    }
+
+frxResetPM OBJECT-TYPE
+    SYNTAX INTEGER {
+        normal(1),
+        resetPM(2)
+        }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "Reset all of the performance monitoring statistics on the
+        specified Cisco 90 Series channel unit or BRITE card.
+        1=Normal. 2=Reset.  There is no need to set this register
+        back to Normal after doing a reset."
+    ::= { frxUPerfEntry 1 }
+
+frxPMtype OBJECT-TYPE
+    SYNTAX INTEGER {
+        segmentedPM(1),
+        pathPM(2)
+        }
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Determines if the Cisco 90 Series channel unit or the downstream
+        BRITE cards is doing segmented or path performance monitoring as
+        specified in Bellcore document TR-NWT-000397.  Only segmented
+        performance monitoring should be used.  In segmented PM, CRC
+        errors are counted on each segment of the loop, instead of
+        over the entire path.  If no BRITE cards exist in the system,
+        there is no difference between segmented and path PM
+        1=Segmented.   2=Path."
+    ::= { frxUPerfEntry 2 }
+
+frxChEsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Errored Seconds - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 3 }
+
+frxChEsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 4 }
+
+frxPhEsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Hour Errored Seconds - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 5 }
+
+frxPhEsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Hour Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 6 }
+
+frxH2EsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 2 hours ago - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 7 }
+
+frxH2EsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 2 hours ago - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 8 }
+
+frxH3EsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 3 hours ago - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 9 }
+
+frxH3EsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 3 hours ago - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 10 }
+
+frxH4EsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 4 hours ago - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 11 }
+
+frxH4EsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 4 hours ago - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 12 }
+
+frxH5EsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 5 hours ago - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 13 }
+
+frxH5EsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 5 hours ago - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 14 }
+
+frxH6EsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 6 hours ago - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 16 }
+
+frxH7EsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 7 hours ago - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 17 }
+
+frxH7EsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 7 hours ago - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 18 }
+
+frxH8EsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 8 hours ago - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 19 }
+
+frxH8EsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Errored Seconds 8 hours ago - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 20 }
+
+frxCdEsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Day Errored Seconds - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 21 }
+
+frxCdEsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Day Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 22 }
+
+frxPdEsTx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Day Errored Seconds - Transmit direction.
+         Transmit is data from the network towards the customer.
+         Errored Seconds are seconds in which one or more block
+         errors occur.  These errors are measured at the physical
+         link level (e.g. DSL CRC or BPV errors) and not at the
+         frame relay level. This register is defined by Bellcore
+         TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+         (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 23 }
+
+frxPdEsRx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Day Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Errored Seconds are seconds in which one or more block
+        errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 24 }
+
+frxChSesTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Severely Errored Seconds - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 25 }
+
+frxChSesRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Severely Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 26 }
+
+frxPhSesTx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Hour Severely Errored Seconds - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address
+        (note: DDS loops cannot detect transmit errors)"
+    ::= { frxUPerfEntry 27 }
+
+frxPhSesRx OBJECT-TYPE
+    SYNTAX INTEGER(0..3600)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Hour Severely Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 28 }
+
+frxCdSesTx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Day Severely Errored Seconds - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 29 }
+
+frxCdSesRx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Day Severely Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 30 }
+
+frxPdSesTx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Day Severely Errored Seconds - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 31 }
+
+frxPdSesRx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Day Severely Errored Seconds - Receive direction.
+        Receive is data from the customer towards the network.
+        Severely Errored Seconds are seconds in which three or more
+        block errors occur.  These errors are measured at the physical
+        link level (e.g. DSL CRC or BPV errors) and not at the
+        frame relay level. This register is defined by Bellcore
+        TR-TSY-000829. Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 32 }
+
+frxChBeTx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Block Errors - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Block errors are 12 millisecond time periods in which a
+        physical link level (e.g. DSL CRC or BPV) error occurs.
+        These errors are not the same as frame relay level errors.
+        This register is defined by Bellcore TR-TSY-000829.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 33 }
+
+frxChBeRx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Block Errors - Receive direction.
+        Receive is data from the customer towards the network.
+        Block errors are 12 millisecond time periods in which a
+        physical link level (e.g. DSL CRC or BPV) error occurs.
+        These errors are not the same as frame relay level errors.
+        This register is defined by Bellcore TR-TSY-000829.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 34 }
+
+frxPhBeTx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Hour Block Errors - Transmit direction.
+        Transmit is data from the network towards the customer.
+        Block errors are 12 millisecond time periods in which a
+        physical link level (e.g. DSL CRC or BPV) error occurs.
+        These errors are not the same as frame relay level errors.
+        This register is defined by Bellcore TR-TSY-000829.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 35 }
+
+frxPhBeRx OBJECT-TYPE
+    SYNTAX INTEGER(0..65535)
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "Previous Hour Block Errors - Receive direction.
+        Receive is data from the customer towards the network.
+        Block errors are 12 millisecond time periods in which a
+        physical link level (e.g. DSL CRC or BPV) error occurs.
+        These errors are not the same as frame relay level errors.
+        This register is defined by Bellcore TR-TSY-000829.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUPerfEntry 36 }
+
+frxPAddrIndex OBJECT-TYPE
+    SYNTAX INTEGER {
+        localFrx(7),
+        briteCard1(1),
+        briteCard2(2),
+        briteCard3(3),
+        briteCard4(4),
+        briteCard5(5),
+        briteCard6(6)
+        }
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION
+        "This is the physical location where the performance
+        monitoring takes place.  It may be set to localFrx(7)
+        to access and control PM values local to the Cisco 90
+        Series channel unit. If there are BRITE cards in the
+        subscriber loop between the Cisco 90 Series channel
+        unit and the customer, PM values contained in those
+        cards may be accessed using briteCard1(1) to
+        briteCard6(6) where briteCard1 is the card closest
+        to the Cisco 90 Series channel unit."
+    ::= { frxUThrEntry 1 }
+
+frxUThrEntry OBJECT-TYPE
+    SYNTAX FrxUThrEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "A specific entry in the U-interface Performance Monitoring
+        Threshold table.  There is one entry for each port on each
+        Cisco 90 Series channel unit in the system and one entry for
+        each BRITE card extending those ports.  There are no entries
+        for unused banks or empty channel unit slots"
+    INDEX { frxBankIndex, frxChUIndex, frxPortIndex, frxPAddrIndex }
+    ::= { frxUThrTable 1 }
+
+FrxUThrEntry ::= SEQUENCE {
+    frxPAddrIndex INTEGER,
+    frxChEsTh INTEGER,
+    frxCdEsTh INTEGER,
+    frxChSesTh INTEGER,
+    frxCdSesTh INTEGER,
+    frxAlertMask INTEGER,
+    frxThCond INTEGER
+    }
+
+frxChEsTh OBJECT-TYPE
+    SYNTAX INTEGER(1..3600)
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Errored Seconds threshold. This
+        threshold is used for both the transmit and receive
+        directions. When errors are detected that exceed this
+        threshold and the corresponding bit in the frxAlertMask
+        register is 0, the corresponding bit in the frxThCond
+        register is set and a trap is generated (depending on
+        the state of frxUPerfTrapEnable). Factory defaut is 40.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUThrEntry 2 }
+
+frxCdEsTh OBJECT-TYPE
+    SYNTAX INTEGER(1..65535)
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "Current Day Errored Seconds threshold. This
+        threshold is used for both the transmit and receive
+        directions. When errors are detected that exceed this
+        threshold and the corresponding bit in the frxAlertMask
+        register is 0, the corresponding bit in the frxThCond
+        register is set and a trap is generated (depending on
+        the state of frxUPerfTrapEnable). Factory defaut is 100.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUThrEntry 3 }
+
+frxChSesTh OBJECT-TYPE
+    SYNTAX INTEGER(1..3600)
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "Current Hour Severely Errored Seconds threshold. This
+        threshold is used for both the transmit and receive
+        directions. When errors are detected that exceed this
+        threshold and the corresponding bit in the frxAlertMask
+        register is 0, the corresponding bit in the frxThCond
+        register is set and a trap is generated (depending on
+        the state of frxUPerfTrapEnable). Factory defaut is 10.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUThrEntry 4 }
+
+frxCdSesTh OBJECT-TYPE
+    SYNTAX INTEGER(1..65535)
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "Current Day Severely Errored Seconds threshold. This
+        threshold is used for both the transmit and receive
+        directions. When errors are detected that exceed this
+        threshold and the corresponding bit in the frxAlertMask
+        register is 0, the corresponding bit in the frxThCond
+        register is set and a trap is generated (depending on
+        the state of frxUPerfTrapEnable). Factory defaut is 25.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUThrEntry 5 }
+
+frxAlertMask OBJECT-TYPE
+    SYNTAX INTEGER(0..255)
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "8-bit Alert Mask register. One bit for each threshold in
+        both directions.  When set to 1, the corresponding threshold
+        crossing is ignored. When set to 0, the corresponding threshold
+        crossing is indicated in frxThCond and may cause a trap to be
+        sent depending on the state of frxUPerfTrapEnable.
+             1  Current Day Severely Errored Seconds Receive
+             2  Current Day Severely Errored Seconds Transmit
+             4  Current Day Errored Seconds Receive
+             8  Current Day Errored Seconds Receive
+            16  Current Hour Severely Errored Seconds Receive
+            32  Current Hour Severely Errored Seconds Transmit
+            64  Current Hour Errored Seconds Receive
+           128  Current Hour Errored Seconds Transmit
+        Transmit is data from the customer towards the network.
+        Receive is data from the network towards the Customer.
+        This register is defined by Bellcore TR-TSY-000829.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUThrEntry 6 }
+
+frxThCond OBJECT-TYPE
+    SYNTAX INTEGER(0..255)
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION
+        "8-bit Threshold Condition register. One bit for each
+        threshold in both directions.  Set to 1 if the threshold
+        is exceeded and the corresponding bit in the frxAlertMask
+        register is set to 0. Only set to 0 by the SNMP manager.
+             1  Current Day Severely Errored Seconds Receive
+             2  Current Day Severely Errored Seconds Transmit
+             4  Current Day Errored Seconds Receive
+             8  Current Day Errored Seconds Receive
+            16  Current Hour Severely Errored Seconds Receive
+            32  Current Hour Severely Errored Seconds Transmit
+            64  Current Hour Errored Seconds Receive
+           128  Current Hour Errored Seconds Transmit
+        Receive is data from the customer towards the network.
+        Transmit is data from the network towards the Customer.
+        SNMP manager should reset bits to 0 after they it has been
+        read by issuing a set using the inverted byte read. Sets
+        will only reset bits where the set data is a 0.  Setting
+        a bit to a 1 has no effect.  This register is defined
+        by Bellcore TR-TSY-000829.  In the spirit of SNMP, the bits
+        are inverted when read relative to that specification so
+        the sense of the bits is the same for sets and gets.
+        Indexed by Bank.ChannelUnit.Port.Address"
+    ::= { frxUThrEntry 7 }
+
+frxUThrTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF FrxUThrEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "This table contains the U-interface Performance Monitoring
+        Thresholds and Alarms for each of the subscriber loops in
+        the system and for any BRITE cards extending those loops
+        (e.g. using Subscriber Loop Carrier systems)  The table is
+        indexed first using the Cisco 90 Series channel bank digroup
+        number, then the channel unit number (1 to 24), then the port
+        number (0, 1, etc) and finally the location number (the BRITE
+        card number (1 to 6) or 7 for local parameters in the Cisco
+        90 Series card). These registers are defined by Bellcore
+        TR-TSY-000829."
+    ::= { frxPort 4 }
+
+frxUPerfTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF FrxUPerfEntry
+    ACCESS not-accessible
+    STATUS mandatory
+    DESCRIPTION
+        "This table contains the U-interface Performance Monitoring
+        Statistics for each of the subscriber loops in the system
+        and for any BRITE cards extending those loops (e.g. using
+        Subscriber Loop Carrier systems)  The table is indexed
+        first using the Cisco 90 Series channel bank digroup number,
+        then the channel unit number (1 to 24), then the port number
+        (0, 1, etc) and finally the location number (the BRITE card
+        number (1 to 6) or 7 for local parameters in the Cisco 90
+        Series card). These registers are defined by Bellcore
+        TR-TSY-000829."
+    ::= { frxPort 5 }
+
+
+
+
+END

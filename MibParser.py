@@ -1,27 +1,37 @@
 from __future__ import annotations
 
+import os
 import re
 import warnings
 from glob import glob
 from pathlib import Path
-from typing import Union, Iterable
+from typing import Union, Iterable, Optional
 
-_rDashedWord = r'(\w|-)+'
+from Region import Region
+
+# _rDWord = r'(\w|-)+'  # dashed word
+_rDWord = r'[\w-]+'  # dashed word
 
 _known_oids = {'iso': None}
 
 # _known_types = {"BOOLEAN", "INTEGER","BIT STRING","OCTET STRING","DATE","DATE","TIME-OF-DAY","DATE-TIME	"}
-_known_types = {'INTEGER': None, 'OCTET STRING': None,"OBJECT IDENTIFIER":None}
+_known_types = {'INTEGER': None, 'OCTET STRING': None, "OBJECT IDENTIFIER": None}
 _types_def_keywords = ("SEQUENCE", "OF", "SIZE", "FROM")
+
+pathType = Union[str, bytes, os.PathLike]
 
 
 def partition(s, indices):
     return [s[i:j] for i, j in zip(indices, indices[1:] + [None])]
 
 
-def s_strip(s):
+def s_strip(s: str, chars=' \n\t') -> str:
     """ strip '\n \t' from given string"""
-    return s.strip(' \n\t')
+    return s.strip(chars)
+
+
+def ls_strip(l: list[str], chars=' \n\t') -> list[str]:
+    return [s_strip(s, chars) for s in l]
 
 
 def remove_strs(s: str, strs: Iterable[str]):
@@ -37,17 +47,17 @@ def _remove_type_keywords(s):
 class MibIdr:
     """
      identifier. (oid definition or type definition).
-     automatically registers as identifier in mibCollector parent in initialization.
+     automatically registers as identifier in mibParser parent in initialization.
     """
 
     def __init__(self, module: MibModule, text):
-        self.name = re.compile(_rDashedWord).match(text).group()
+        self.name = re.compile(_rDWord).match(text).group()
         self.module = module  # parent module
         self.dependencies: dict[str, MibIdr] = {}
-        self.mibCollector = module.mibCollector
+        self.mibParser = module.mibParser
         self.text = text
 
-        self.mibCollector[self.name] = self
+        self.mibParser[self.name] = self
 
 
 _type_extensions = ["ENUMERATED", "SEQUENCE", "SET", "CHOICE"]
@@ -115,14 +125,12 @@ class MibObjectID(MibIdr):
         self.INDEX = ...
 
         # extract dependent types
-        m = re.search("(?<=SYNTAX)(.|\n)*?(?=ACCESS)", text)
+        m = re.search("(?<=SYNTAX)(.|\n)*?(?=(MAX-)?ACCESS)", text)
         if m:
             # SYNTAX
-            # typeName = s_strip(re.sub(r"\(.*\)", '', _remove_type_keywords(m.group())))
-            # self.module.resolve_type(typeName)
             typeName = MibType.get_typeName(m.group())
             self.module.resolve_type(typeName)
-        m = re.search("(?<=INDEX)(.|\n)*?(?=::=)", text)
+        m = re.search('(?<=INDEX)(.|\n)*?(?=::=)', text)
         if m:
             # INDEX
             oids = [s_strip(oid) for oid in _remove_type_keywords(m.group()).strip('\n \t{}').split(',')]
@@ -135,7 +143,38 @@ class MibObjectID(MibIdr):
         for dep in deps:
             if re.match(r'^(?!\d)(\w|-)+$', dep):
                 self.module.resolve_oidName(dep)
-                self.dependencies[dep] = self.mibCollector[dep]
+                self.dependencies[dep] = self.mibParser[dep]
+
+
+class MibRegions:
+    """ each region contains regex match referring to original text region(to save time)"""
+
+    def __init__(self, text):
+        t = Optional[Region]
+        self.START: t = None
+        self.EXPORTS: t = None
+        self.IMPORTS: t = None
+        self.DEFS: t = None
+
+        self._delimit_regions(text)
+
+    def _delimit_regions(self, text):
+        regions_regs = {
+            # 'START': r'(\w|-)+.*DEFINITIONS\s*::=\sBEGIN',
+            'START': r'(\w|-)+(.|\n)*DEFINITIONS\s*::=\s+BEGIN',
+            "EXPORTS": r'EXPORTS(.|\n)*?;',
+            "IMPORTS": r'IMPORTS(.|\n)*?;',
+            "DEFS": '(.|\n)*(=?END)'
+        }
+
+        text = "".join(re.split(r'--.*(\r|\n)', text))
+
+        i = 0
+        for regionName, reg in regions_regs.items():
+            m = Region(text, reg, i)
+            setattr(self, regionName, m)
+            if m:
+                i = m.end()
 
 
 class MibModule:
@@ -147,37 +186,54 @@ class MibModule:
      to resolve oid and then will clear relevant text.
      """
 
-    def __init__(self, mibCollector, path):
+    def __init__(self, mibParser: MibParser, path):
+        self.mibParser = mibParser  # parent mibParser
         self.path = Path(path).resolve()
         with open(path) as f:
             text = f.read()
-        self._i_md_start = re.compile(_rDashedWord + r' .*DEFINITIONS\s*::=\sBEGIN', re.M).search(text)
-        self.name = re.compile(_rDashedWord, re.M).search(text, self._i_md_start.start()).group()
-        self.mibCollector = mibCollector  # parent mibCollector
-        self.unparsedText = text
+        self.text = text
+        self.regions = MibRegions(text)
+        if not self.regions.START:
+            raise Exception(f'unvalid syntax in module {self.path}')
+        self.name = self.regions.START.search(_rDWord).group()
+        if not self.mibParser.fast_load:
+            print(f'parsing moudle {self.name}')
 
-        self.imports: dict[str, MibModule] = {}
+        # self.regions.DEFS.search('[\w]')
+        # self._i_md_start = re.compile(_rDWord + r' .*DEFINITIONS\s*::=\sBEGIN', re.M).search(text)
+        # self.name = re.compile(_rDWord, re.M).search(text, self._i_md_start.start()).group()
+
+        # {idrName:mibPath which defines idrName}
+        self.imported_idrs: dict[str, str] = {}
         self._parse_imports()
 
-        self.requiredIdr: dict[str, Union[MibObjectID, MibType]] = {}
+        # {idrName:MibModule which defines idrName}
         self.requiredModules: dict[str, MibModule] = {}
 
+        # {idrName:idr definition text}
+        self.defined_idrs: dict[str, str] = {}
+        self._parse_all_definitions()
+        # self.idrDefs: dict[str, Union[MibObjectID, MibType]] = {}
+
     def _parse_imports(self):
-        text = self.unparsedText
-        st2 = re.compile('IMPORTS', re.M).search(text, self._i_md_start.end())
-        if not st2:
-            return
-        st3 = re.compile(';', re.M).search(text, st2.end())
-        imports_text = text[st2.end():st3.start()].strip('\t \n;')
-        indexs = [match.end() for match in re.finditer(r'FROM\s+' + _rDashedWord, imports_text, re.M)]
-        indexs.insert(0, 0)
-        indexs.pop()
-        for imp in partition(imports_text, indexs):
-            oids, module = imp.split("FROM")
+        """ make the module be aware what idrs are imported and from which module """
+        # imports_text = re.search(r'(?<=IMPORTS)(.|\n)*?(?=;)', self.text).group()
+        if not self.regions.IMPORTS: return
+        m = self.regions.IMPORTS.narrow(r'(?<=IMPORTS)(.|\n)*?(?=;)')
+        for imp in m.finditer(r'[\s\S]*?FROM\s+([\w-]+)'):
+            idrs, module = imp.group().split('FROM')
+            idrs = ls_strip(idrs.split(','))
             module = s_strip(module)
-            for oid in oids.split(','):
-                oid = s_strip(oid)
-                self.imports[oid] = module
+            for idr in idrs:
+                self.imported_idrs[idr] = module
+
+    def _parse_all_definitions(self):
+        """ build dictionary of {idrName:definition-text} for faster search
+         Note: expensive calculation"""
+        defs = self.regions.DEFS.finditer(f'({_rDWord + MibObjectID.def_reg})|({_rDWord + MibType.def_reg})')
+        for d in defs:
+            m_idrName = d.search(r'[\w-]+')
+            self.defined_idrs[m_idrName.group()] = d.group()
 
     def resolve_oidName(self, oidName):
         return self.resolve_identifier(oidName, MibObjectID)
@@ -186,14 +242,17 @@ class MibModule:
         return self.resolve_identifier(typeName, MibType)
 
     def resolve_identifier(self, idrName, _IdrClass=None):
-        if idrName in self.mibCollector:
+        if idrName in self.mibParser:
             return
             # first resolve modules if required
-        if idrName in self.imports:
-            moduleName = self.imports[idrName]
+        if idrName in self.imported_idrs:
+            moduleName = self.imported_idrs[idrName]
             if moduleName not in self.requiredModules:
                 self.resolve_module(moduleName)
             self.requiredModules[moduleName].resolve_identifier(idrName)
+            return
+
+        if not self.regions.DEFS:
             return
 
         if not _IdrClass:
@@ -204,9 +263,13 @@ class MibModule:
                 # this is oid
                 _IdrClass = MibObjectID
 
-        reg = re.compile(idrName + _IdrClass.def_reg)
+        # reg = re.compile(idrName + _IdrClass.def_reg)
+        # idr_m_test = reg.search(self.text)
 
-        idr_m = reg.search(self.unparsedText)
+        idr_m = self.regions.DEFS.search(idrName + _IdrClass.def_reg)
+        # if idr_m_test.group() != idr_m.group():
+        #     raise Exception("error!")
+
         if not idr_m:
             warnings.warn(f'cant resolve identifier {idrName}')
             return
@@ -221,7 +284,7 @@ class MibModule:
         except IndexError:
             warnings.warn(f"can't resolve module {moduleName} at path {path}")
             return
-        module = MibModule(self.mibCollector, _path)
+        module = MibModule(self.mibParser, _path)
         self.requiredModules[moduleName] = module
         return module
 
@@ -233,59 +296,195 @@ class MibParser:
 
      at the end generate a custom module.
 
-     identifiers with starting with lowercase letter referred as oid-name and capital letter as type
+     identifiers starting with lowercase letter referred as oid-name and capital letter as type
      """
 
-    def __init__(self, identifiers: dict[str, str] = None, mainModuleName='my-mib'):
-        if identifiers is None:
-            identifiers = {}
-        self.mainModuleName = mainModuleName
-        self.identifiers: dict[str, MibObjectID] = {**_known_oids, **_known_types}
-        self.modules: dict[str, MibModule] = {}
-        self.require_identifier(identifiers)
-        # self.types: dict[str, MibType] = {**_known_types}
+    mib_exteinsons = ('my', 'mib', 'txt')
 
-    def require_identifier(self, idrs: dict[str, str]):
-        """ requiring recursively an identifier (oid(lowercase first letter) or type(capital first letter)) """
+    def __init__(self, mainModuleName='my-mib', idrs_dict: dict[str, str] = None, idrs_list: list[str] = None,
+                 mibs_paths: Union[list[pathType], pathType] = None, fast_load: bool = True):
+        """
+
+        :param mainModuleName: the name of the module that will be generated using eject_mib() method
+        :param idrs_dict: a dictionary of oid:mibPath pairs. for example {"sysObjectID":"./RFC1213-MIB.my"}
+        :param idrs_list: a list of oids that will be resolve from mibs}
+        :param mibs_paths: list of mibs that will be loaded and when oid doesn't resolve it will be looked at this
+        :param fast_load: if set to true FAST LOADING algorithm will be chosen, else FAST SEARCHING algorithm will be chosen.
+        if not given algorithm chosen automatically.
+        """
+        if mibs_paths is None:
+            mibs_paths = []
+        if type(mibs_paths) != list:
+            mibs_paths = [mibs_paths]
+        if idrs_list is None:
+            idrs_list = []
+        if idrs_dict is None:
+            idrs_dict = {}
+
+        self.fast_load = fast_load
+
+        # idrs that shoud be included in the final generated mib file
+        self.required_idrs = list(idrs_dict) + idrs_list
+        # the name of the module that will be created
+        self.mainModuleName = mainModuleName
+
+        # already required,parsed identifiers. this dict will be filled at runtime
+        self.parsed_identifiers: dict[str, MibObjectID] = {**_known_oids, **_known_types}
+
+        # all required modules to parse required_idrs
+        self.modules: dict[str, MibModule] = {}
+        self.require_identifiers(idrs_dict)
+
+        # load mibs needed to resolve idrs_list
+        self.loaded_parsed_mibs: dict[str, MibModule] = {}
+        self.loaded_text_mibs: dict[str, str] = {}
+        self.load_mibs(mibs_paths)
+        # self.loaded_mibs: dict[str, str] = {}
+
+        # start the main logic of searching and resolving oids in the mibs
+        self.require_identifier_list(idrs_list)
+
+        print(f'Finished building {self.mainModuleName}')
+
+    def _get_mib_from_identifier(self, idrName: str) -> str:
+        """ search for specific identifier definition in a text mib file """
+        # check if idrName already resolved
+        if idrName in self.parsed_identifiers:
+            return self.parsed_identifiers[idrName].module.name
+        if self.fast_load:
+            self._get_mib_from_identifier_fast_load(idrName)
+        else:
+            self._get_mib_from_identifier_fast_search(idrName)
+
+    def _get_mib_from_identifier_fast_load(self, idrName: str):
+        # resolve idrName from unparsed loaded mib files
+        oid_c = re.compile(f'({idrName + MibObjectID.def_reg})|({idrName + MibType.def_reg})')
+        if self.fast_load:
+            print(f'searching oid {idrName}')
+        for path, val in self.loaded_text_mibs.items():
+            m = oid_c.search(val)
+            if m:
+                self.require_identifiers({idrName: path})
+
+    def _get_mib_from_identifier_fast_search(self, idrName: str):
+        for mibPath, mibModule in self.loaded_parsed_mibs.items():
+            if idrName in mibModule.defined_idrs:
+                mibModule.resolve_identifier(idrName)
+
+    def require_identifier_list(self, idrs: list[str]):
+        """ parse list of identifiers without mibPath then search what mib defines this ldr from loaded_mibs and
+        return dict of {idr:mibPath} pairs
+        fast load.
+        """
+
+        for idrName in idrs:
+            self.require_identifiers({idrName: self._get_mib_from_identifier(idrName)})
+
+    def require_identifiers(self, idrs: dict[str, str]):
+        """ requiring recursively identifiers (oid(lowercase first letter) or type(capital first letter)) """
         for idr, path in idrs.items():
+            if idr in self.parsed_identifiers:
+                return
             if path not in self.modules:
                 self.modules[path] = MibModule(self, path)
             self.modules[path].resolve_identifier(idr)
 
-    def eject_mib(self):
+    def load_mibs_fast_load(self, mibFiles):
+        """ fast loading algorithm but slower searching time
+       choose this if you have a lot of mib files and small amount of oids"""
+        for file in mibFiles:
+            with open(file) as f:
+                self.loaded_text_mibs[file] = f.read()
+
+        # if idrName in self.parsed_identifiers:
+        #     return self.parsed_identifiers[idrName].module.name
+        #
+        # for mibPath, mibModule in self.loaded_mibs.items():
+        #     if idrName in mibModule.defined_idrs:
+        #         mibModule.resolve_identifier(idrName)
+
+    def load_mibs_fast_search(self, mibFiles):
+        """ fast searching algorithm but slower loading time
+        choose this if you have a lot of oids to search in small amount of mib files"""
+        for file in mibFiles:
+            # Note: MibModule(...) operation takes a lot of time for many files
+            self.loaded_parsed_mibs[file] = MibModule(self, file)
+
+    def load_mibs(self, paths: list[pathType]):
+        """
+        load mib text files into dict
+        choosing best fastest to do so automatically.
+         """
+        mibFiles = []
+        for reg in paths:
+            mibFiles += glob(reg)
+
+        # TODO: add smart automatically choosing algorithm
+        # if len(self.required_idrs)>len(mibFiles):
+        # self.fast_load = True
+
+        if self.fast_load:
+            print('using fast loading algorithm')
+            self.load_mibs_fast_load(mibFiles)
+        else:
+            print('using fast searching algorithm')
+            self.load_mibs_fast_search(mibFiles)
+
+    def eject_mib(self, path=None):
         mib_text = f'{self.mainModuleName} DEFINITIONS ::= BEGIN\n\n\n'
-        for oid in self.identifiers.values():
+        for oid in self.parsed_identifiers.values():
             if oid:
                 mib_text += oid.text + '\n\n'
         mib_text += '\n\n\nEND'
+
+        if path:
+            p = f'{os.path.dirname(__file__)}/tests/{self.mainModuleName}.my'
+            print(f'saving {self.mainModuleName} to {p}')
+            with open(p, 'w') as f:
+                f.write(mib_text)
+
         return mib_text
 
     def __contains__(self, key):
-        return key in self.identifiers
+        return key in self.parsed_identifiers
 
     def __getitem__(self, key):
-        return self.identifiers[key]
+        return self.parsed_identifiers[key]
 
     def __setitem__(self, key, value):
-        self.identifiers[key] = value
+        self.parsed_identifiers[key] = value
 
 
-def test():
-    mibs_folder = Path(__file__).parent / "tests"
-
-    # mapping between object names and mib files
-    objectNames = {
-        # "TimeTicks": f"{mibs_folder}/RFC1213-MIB.my",        # required items can also be types
-        "sysObjectID": f"{mibs_folder}/RFC1213-MIB.my",
-        # "frxT1OutOctets": f"{mibs_folder}/CISCO-90-MIB-V1SMI.my",
-        # "dot1xPaeSystemAuthControl": f"{mibs_folder}/IEEE8021-PAE-MIB-V1SMI.my",
+def test_dict():
+    object_names_dirs = {
+        "dot1xPaeSystemAuthControl": f"tests/IEEE8021-PAE-MIB-V1SMI.my",
     }
-    mibCollector = MibParser(objectNames)
+    mibParser = MibParser('test-dict-mib', idrs_dict=object_names_dirs)
+    mibParser.eject_mib('path')
 
-    mib_text = mibCollector.eject_mib()
-    with open('./tests/my-mib.my', 'w') as f:
-        f.write(mib_text)
+
+def test_list_with_loading():
+    # mapping between object names and mib files
+
+    object_names = [
+        'TimeTicks',  # required items can also be types
+        'frxT1OutOctets',
+        'dot1xPaeSystemAuthControl',
+        "frxH6EsTx"
+    ]
+    mibs_paths = [
+        'tests/*'
+    ]
+    mibParser = MibParser('test-loading-mib', idrs_list=object_names, mibs_paths=mibs_paths)
+    mibParser.eject_mib('./tests')
 
 
 if __name__ == "__main__":
-    test()
+    import time
+
+    start_time = time.time()
+
+    test_dict()
+    test_list_with_loading()
+
+    print(f'execution time:{time.time() - start_time}')
