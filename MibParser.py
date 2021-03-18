@@ -37,7 +37,7 @@ def _remove_type_keywords(s):
 class MibIdr:
     """
      identifier. (oid definition or type definition).
-     automatically registers as identifier in mibCollector parent in initialization.
+     automatically registers as identifier in mibParser parent in initialization.
     """
 
     def __init__(self, module: MibModule, text):
@@ -153,7 +153,7 @@ class MibModule:
             text = f.read()
         self._i_md_start = re.compile(_rDashedWord + r' .*DEFINITIONS\s*::=\sBEGIN', re.M).search(text)
         self.name = re.compile(_rDashedWord, re.M).search(text, self._i_md_start.start()).group()
-        self.mibCollector = mibCollector  # parent mibCollector
+        self.mibCollector = mibCollector  # parent mibParser
         self.unparsedText = text
 
         self.imports: dict[str, MibModule] = {}
@@ -276,8 +276,8 @@ def test():
     # mapping between object names and mib files
     objectNames = {
         # "TimeTicks": f"{mibs_folder}/RFC1213-MIB.my",        # required items can also be types
-        "sysObjectID": f"{mibs_folder}/RFC1213-MIB.my",
-        # "frxT1OutOctets": f"{mibs_folder}/CISCO-90-MIB-V1SMI.my",
+        # "sysObjectID": f"{mibs_folder}/RFC1213-MIB.my",
+        "frxT1OutOctets": f"{mibs_folder}/CISCO-90-MIB-V1SMI.my",
         # "dot1xPaeSystemAuthControl": f"{mibs_folder}/IEEE8021-PAE-MIB-V1SMI.my",
     }
     mibCollector = MibParser(objectNames)
