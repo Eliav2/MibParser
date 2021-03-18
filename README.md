@@ -15,8 +15,8 @@ note that you have to include all dependent mib files in the same directory. so:
 ```python
 from MibParser import MibParser
 
-mibCollector = MibParser(idrs_dict={"sysObjectID": "RFC1213-MIB.my"})
-mib_text = mibCollector.eject_mib()
+mibParser = MibParser(idrs_dict={"sysObjectID": "RFC1213-MIB.my"})
+mib_text = mibParser.eject_mib()
 with open('my-mib.my', 'w') as f:
     f.write(mib_text)
 ```
@@ -64,7 +64,7 @@ dependent). you can see and run more complicated example by running directly Mib
 if you don't know what is the mib defines an oid-name then you need to preload all possible-required mibs::
 
 ```python
-mibCollector = MibParser(mibs_paths='../cisco-mibs/*.my', idrs_list=['sysObjectID'])
+mibParser = MibParser(mibs_paths='../cisco-mibs/*.my', idrs_list=['sysObjectID'], fast_load=True)
 ```
 
 which will output the same as above. note - this method will run much slower because we need to first load all mib files
@@ -100,7 +100,7 @@ the required oids.
 
 ## Region
 
-another very continent class was implemented in this project in order to build MibParser. Region. is uses as a wrapper
+another very convenient class was implemented in this project in order to build MibParser. Region. is uses as a wrapper
 for re.Match/re.Pattern regex classes which are not very convenient working with and sometimes confusing.<br/>
 it's also very efficient to use in big string as it re-matches the original match and thus no need for copy part of the
 string for later parsing.  
